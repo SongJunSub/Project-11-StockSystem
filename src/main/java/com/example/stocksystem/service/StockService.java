@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class StockService {
 
-    private StockRepository stockRepository;
+    private final StockRepository stockRepository;
 
     @Transactional
     public void decreaseStock(Long id, Long quantity) {
