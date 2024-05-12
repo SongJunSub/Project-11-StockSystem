@@ -1,7 +1,9 @@
-package com.example.stocksystem.service;
+package com.example.stocksystem.facade;
 
 import com.example.stocksystem.domain.Stock;
 import com.example.stocksystem.repository.StockRepository;
+import com.example.stocksystem.service.PessimisticLockStockService;
+import com.example.stocksystem.service.StockService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,13 +17,10 @@ import java.util.concurrent.Executors;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-class StockServiceTest {
+class OptimisticLockStockFacadeTest {
 
     @Autowired
-    private StockService stockService;
-
-    @Autowired
-    private PessimisticLockStockService pessimisticLockStockService;
+    private OptimisticLockStockFacade optimisticLockStockFacade;
 
     @Autowired
     private StockRepository stockRepository;
@@ -41,45 +40,6 @@ class StockServiceTest {
     }
 
     @Test
-    public void decreaseQuantity(){
-        stockService.decreaseStock(1L, 1L);
-
-        Stock stock = stockRepository.findById(1L).orElseThrow();
-
-        assertEquals(99, stock.getQuantity());
-    }
-
-    @Test
-    public void decreaseMultipleQuantity() throws InterruptedException {
-        //동시에 100개의 요청을 보내야 하므로 멀티 스레드를 사용
-        int threadCount = 100;
-
-        //ExecutorService : 병렬 작업을 간단하게 할 수 있게 도와주는 Java의 API
-        ExecutorService executorService = Executors.newFixedThreadPool(32);
-        //모든 요청이 끝날 때까지 기다려야 하므로 CountDownLatch를 사용
-        //CountDownLatch : 다른 Thread에서 수행하는 작업을 기다리도록 도와주는 클래스
-        CountDownLatch latch = new CountDownLatch(threadCount);
-
-        for(int i=0; i<threadCount; i++){
-            executorService.submit(() -> {
-                try {
-                    stockService.decreaseStock(1L, 1L);
-                }
-                finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        latch.await();
-
-        Stock stock = stockRepository.findById(1L).orElseThrow();
-
-        //100 - (1 * 100) = 0
-        assertEquals(0, stock.getQuantity());
-    }
-
-    @Test
     public void decreaseMultipleQuantityWithPessimisticLock() throws InterruptedException {
         //동시에 100개의 요청을 보내야 하므로 멀티 스레드를 사용
         int threadCount = 100;
@@ -93,7 +53,10 @@ class StockServiceTest {
         for(int i=0; i<threadCount; i++){
             executorService.submit(() -> {
                 try {
-                    pessimisticLockStockService.decreaseWithPessimisticLock(1L, 1L);
+                    optimisticLockStockFacade.decrease(1L, 1L);
+                }
+                catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
                 finally {
                     latch.countDown();
